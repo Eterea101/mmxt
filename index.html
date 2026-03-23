@@ -4075,6 +4075,10 @@ description: |            # 描述：什么时候该用这个Skill<br>
     }
 
     function calculateRanking(chapterNum) {
+      const rankingEl = document.getElementById('quiz-' + chapterNum + '-ranking');
+      const topEl = document.getElementById('chapter-' + chapterNum + '-top');
+      const usersEl = document.getElementById('chapter-' + chapterNum + '-users');
+
       getRanking().then(snapshot => {
         const data = snapshot.val() || {};
         const users = Object.values(data);
@@ -4089,20 +4093,22 @@ description: |            # 描述：什么时候该用这个Skill<br>
         const totalUsers = users.length || 1;
         const topPercent = Math.max(0, Math.round((1 - myRank / totalUsers) * 100));
 
-        const rankingEl = document.getElementById('quiz-' + chapterNum + '-ranking');
         if (rankingEl) {
           rankingEl.textContent = '你已经超过了 ' + topPercent + '% 的学习者';
         }
 
-        const topEl = document.getElementById('chapter-' + chapterNum + '-top');
         if (topEl) {
           topEl.textContent = topPercent + '%';
         }
 
-        const usersEl = document.getElementById('chapter-' + chapterNum + '-users');
         if (usersEl) {
           usersEl.textContent = totalUsers.toLocaleString();
         }
+      }).catch(err => {
+        console.error('Ranking error:', err);
+        if (rankingEl) rankingEl.textContent = '排名计算中...';
+        if (topEl) topEl.textContent = '-';
+        if (usersEl) usersEl.textContent = '-';
       });
     }
 
