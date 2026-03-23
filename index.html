@@ -3951,12 +3951,8 @@ description: |            # 描述：什么时候该用这个Skill<br>
       'quiz-3': 1,
       'quiz-4': 2
     };
-    const answered = {};
 
     function selectOption(index, quizId, correctIndex) {
-      if (answered[quizId]) return;
-      answered[quizId] = true;
-
       const options = document.querySelectorAll(`#${quizId} .quiz-option`);
       const feedback = document.getElementById(quizId + '-feedback');
       const continueSection = document.getElementById(quizId + '-continue');
@@ -3994,6 +3990,14 @@ description: |            # 描述：什么时候该用这个Skill<br>
             <div class="feedback-text">提示：仔细阅读上面的内容，找到答案。</div>
           </div>
         `;
+        setTimeout(() => {
+          options.forEach((opt, i) => {
+            if (i + 1 === index) {
+              opt.classList.remove('incorrect');
+            }
+          });
+          feedback.innerHTML = '';
+        }, 1500);
       }
     }
 
