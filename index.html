@@ -4100,8 +4100,14 @@ description: |            # 描述：什么时候该用这个Skill<br>
     }
 
     function saveProgress(chapterKey) {
+      const startTime = localStorage.getItem('chapter_start_' + chapterKey) || Date.now();
+      const timeSpent = Date.now() - parseInt(startTime);
+
       const progressRef = db.ref('progress/' + userId + '/chapters/' + chapterKey);
-      progressRef.set(firebase.database.ServerValue.TIMESTAMP).then(() => {
+      progressRef.set({
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        timeSpent: timeSpent
+      }).then(() => {
         updateTotalChapters();
       });
     }
@@ -4126,10 +4132,12 @@ description: |            # 描述：什么时候该用这个Skill<br>
       const rankingEl = document.getElementById('quiz-' + chapterNum + '-ranking');
       const topEl = document.getElementById('chapter-' + chapterNum + '-top');
       const usersEl = document.getElementById('chapter-' + chapterNum + '-users');
+      const avgTimeEl = document.getElementById('chapter-' + chapterNum + '-avg-time');
 
       getRanking().then(snapshot => {
         const data = snapshot.val() || {};
         const users = Object.values(data);
+
         const myData = users.find(u => u._userId === userId);
         const myChapters = myData?.chaptersCompleted || parseInt(chapterNum);
 
@@ -4139,7 +4147,7 @@ description: |            # 描述：什么时候该用这个Skill<br>
         });
 
         const totalUsers = users.length || 1;
-        const topPercent = Math.max(0, Math.round((1 - myRank / totalUsers) * 100));
+        const topPercent = totalUsers > 1 ? Math.max(0, Math.round((1 - myRank / totalUsers) * 100)) : 0;
 
         if (rankingEl) {
           rankingEl.textContent = '你已经超过了 ' + topPercent + '% 的学习者';
@@ -4152,11 +4160,36 @@ description: |            # 描述：什么时候该用这个Skill<br>
         if (usersEl) {
           usersEl.textContent = totalUsers.toLocaleString();
         }
+
+        if (avgTimeEl) {
+          db.ref('progress/').once('value').then(allProgress => {
+            const progressData = allProgress.val() || {};
+            let totalTime = 0;
+            let count = 0;
+            Object.values(progressData).forEach(userProgress => {
+              if (userProgress.chapters && userProgress.chapters['chapter_' + chapterNum]) {
+                const time = userProgress.chapters['chapter_' + chapterNum].timeSpent || 0;
+                if (time > 0) {
+                  totalTime += time;
+                  count++;
+                }
+              }
+            });
+            if (count > 0) {
+              const avgMs = totalTime / count;
+              const avgMinutes = Math.round(avgMs / 60000 * 10) / 10;
+              avgTimeEl.textContent = avgMinutes + '分钟';
+            } else {
+              avgTimeEl.textContent = '-';
+            }
+          });
+        }
       }).catch(err => {
         console.error('Ranking error:', err);
         if (rankingEl) rankingEl.textContent = '排名计算中...';
         if (topEl) topEl.textContent = '-';
         if (usersEl) usersEl.textContent = '-';
+        if (avgTimeEl) avgTimeEl.textContent = '-';
       });
     }
 
@@ -4218,6 +4251,13 @@ description: |            # 描述：什么时候该用这个Skill<br>
 
       if (pageKey === 'complete') {
         loadCompleteStats();
+      }
+
+      if (pageKey.startsWith('ch') && pageKey.includes('-quiz')) {
+        const chapterMatch = pageKey.match(/ch(\d+)-quiz/);
+        if (chapterMatch) {
+          localStorage.setItem('chapter_start_chapter_' + chapterMatch[1], Date.now().toString());
+        }
       }
     }
 
