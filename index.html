@@ -1376,7 +1376,7 @@
               <div class="quiz-section" id="quiz-1-continue" style="display:none; border-top: 1px solid var(--stone-200); padding: 28px 32px; background: var(--stone-50);">
                 <div style="text-align: center; margin-bottom: 18px;">
                   <div style="display: inline-block; padding: 5px 14px; background: var(--green-50); color: var(--green-700); font-size: 12px; border-radius: 999px; margin-bottom: 10px;">章节完成</div>
-                  <p style="color: var(--stone-600); font-size: 14px;">你已经超过了 73% 的学习者</p>
+                  <p style="color: var(--stone-600); font-size: 14px;" id="quiz-1-ranking">正在计算排名...</p>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                   <button class="btn btn-primary" onclick="goToPage('ch2-intro')">进入下一章</button>
@@ -1385,15 +1385,15 @@
             </div>
             <div class="stats-grid">
               <div class="stat-card">
-                <div class="stat-value">1,286</div>
+                <div class="stat-value" id="chapter-1-users">-</div>
                 <div class="stat-label">已学习用户</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">2分15秒</div>
+                <div class="stat-value" id="chapter-1-avg-time">-</div>
                 <div class="stat-label">平均学习时长</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">82%</div>
+                <div class="stat-value" id="chapter-1-top">-</div>
                 <div class="stat-label">超过用户</div>
               </div>
             </div>
@@ -3937,7 +3937,11 @@ description: |            # 描述：什么时候该用这个Skill<br>
         }
         const chapterMatch = quizId.match(/quiz-(\d+)/);
         if (chapterMatch) {
-          saveProgress('chapter_' + chapterMatch[1]);
+          const chapterNum = chapterMatch[1];
+          saveProgress('chapter_' + chapterNum);
+          setTimeout(() => {
+            calculateRanking(chapterNum);
+          }, 500);
         }
       } else {
         feedback.innerHTML = `
@@ -4008,6 +4012,7 @@ description: |            # 描述：什么时候该用这个Skill<br>
     const firebaseConfig = {
       apiKey: "AIzaSyDu2fLfJ5LTSikBmPbgtGSwV3NKofVxthU",
       authDomain: "skill-71e87.firebaseapp.com",
+      databaseURL: "https://skill-71e87-default-rtdb.firebaseio.com",
       projectId: "skill-71e87",
       storageBucket: "skill-71e87.firebasestorage.app",
       messagingSenderId: "20614898683",
@@ -4059,13 +4064,46 @@ description: |            # 描述：什么时候该用这个Skill<br>
         const count = Object.keys(chapters).length;
         db.ref('leaderboard/' + userId).set({
           chaptersCompleted: count,
-          lastUpdate: firebase.database.ServerValue.TIMESTAMP
+          lastUpdate: firebase.database.ServerValue.TIMESTAMP,
+          _userId: userId
         });
       });
     }
 
     function getRanking() {
       return db.ref('leaderboard').orderByChild('chaptersCompleted').once('value');
+    }
+
+    function calculateRanking(chapterNum) {
+      getRanking().then(snapshot => {
+        const data = snapshot.val() || {};
+        const users = Object.values(data);
+        const myData = users.find(u => u._userId === userId);
+        const myChapters = myData?.chaptersCompleted || parseInt(chapterNum);
+
+        let myRank = 1;
+        users.forEach(u => {
+          if (u.chaptersCompleted > myChapters) myRank++;
+        });
+
+        const totalUsers = users.length || 1;
+        const topPercent = Math.max(0, Math.round((1 - myRank / totalUsers) * 100));
+
+        const rankingEl = document.getElementById('quiz-' + chapterNum + '-ranking');
+        if (rankingEl) {
+          rankingEl.textContent = '你已经超过了 ' + topPercent + '% 的学习者';
+        }
+
+        const topEl = document.getElementById('chapter-' + chapterNum + '-top');
+        if (topEl) {
+          topEl.textContent = topPercent + '%';
+        }
+
+        const usersEl = document.getElementById('chapter-' + chapterNum + '-users');
+        if (usersEl) {
+          usersEl.textContent = totalUsers.toLocaleString();
+        }
+      });
     }
 
     loadStats();
