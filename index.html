@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <style>
     :root {
       --stone-50: #fafaf9;
@@ -825,7 +827,7 @@
         
         <div class="intro-stats">
           <div class="intro-stat">
-            <div class="intro-stat-value">5,234</div>
+            <div class="intro-stat-value" id="total-users">-</div>
             <div class="intro-stat-label">已学习用户</div>
           </div>
           <div class="intro-stat">
@@ -833,7 +835,7 @@
             <div class="intro-stat-label">核心章节</div>
           </div>
           <div class="intro-stat">
-            <div class="intro-stat-value">约15分钟</div>
+            <div class="intro-stat-value" id="avg-time">约15分钟</div>
             <div class="intro-stat-label">预计学习时长</div>
           </div>
         </div>
@@ -3933,6 +3935,10 @@ description: |            # 描述：什么时候该用这个Skill<br>
         if (continueSection) {
           continueSection.style.display = 'block';
         }
+        const chapterMatch = quizId.match(/quiz-(\d+)/);
+        if (chapterMatch) {
+          saveProgress('chapter_' + chapterMatch[1]);
+        }
       } else {
         feedback.innerHTML = `
           <div class="quiz-feedback show incorrect">
@@ -3998,6 +4004,72 @@ description: |            # 描述：什么时候该用这个Skill<br>
         });
       });
     });
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDu2fLfJ5LTSikBmPbgtGSwV3NKofVxthU",
+      authDomain: "skill-71e87.firebaseapp.com",
+      projectId: "skill-71e87",
+      storageBucket: "skill-71e87.firebasestorage.app",
+      messagingSenderId: "20614898683",
+      appId: "1:20614898683:web:a5952985ce5c2175a4a15e"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let userId = localStorage.getItem('skill_user_id');
+    if (!userId) {
+      userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('skill_user_id', userId);
+    }
+
+    function loadStats() {
+      db.ref('stats/totalUsers').once('value').then(snapshot => {
+        const total = snapshot.val() || 0;
+        document.getElementById('total-users').textContent = total.toLocaleString();
+      }).catch(() => {
+        document.getElementById('total-users').textContent = '0';
+      });
+    }
+
+    function incrementUser() {
+      const visitKey = 'visits/' + userId;
+      db.ref(visitKey).once('value').then(snapshot => {
+        if (!snapshot.exists()) {
+          db.ref('stats/totalUsers').transaction(current => (current || 0) + 1);
+          db.ref(visitKey).set({
+            firstVisit: firebase.database.ServerValue.TIMESTAMP,
+            lastVisit: firebase.database.ServerValue.TIMESTAMP
+          });
+        } else {
+          db.ref(visitKey + '/lastVisit').set(firebase.database.ServerValue.TIMESTAMP);
+        }
+      });
+    }
+
+    function saveProgress(chapterKey) {
+      const progressRef = db.ref('progress/' + userId + '/chapters/' + chapterKey);
+      progressRef.set(firebase.database.ServerValue.TIMESTAMP).then(() => {
+        updateTotalChapters();
+      });
+    }
+
+    function updateTotalChapters() {
+      db.ref('progress/' + userId + '/chapters').once('value').then(snapshot => {
+        const chapters = snapshot.val() || {};
+        const count = Object.keys(chapters).length;
+        db.ref('leaderboard/' + userId).set({
+          chaptersCompleted: count,
+          lastUpdate: firebase.database.ServerValue.TIMESTAMP
+        });
+      });
+    }
+
+    function getRanking() {
+      return db.ref('leaderboard').orderByChild('chaptersCompleted').once('value');
+    }
+
+    loadStats();
+    incrementUser();
 
     const pageMap = {
       'intro': 'page-intro',
