@@ -4150,7 +4150,7 @@ description: |            # 描述：什么时候该用这个Skill<br>
         const topPercent = totalUsers > 1 ? Math.max(0, Math.round((1 - myRank / totalUsers) * 100)) : 0;
 
         if (rankingEl) {
-          rankingEl.textContent = '你已经超过了 ' + topPercent + '% 的学习者';
+          rankingEl.textContent = 'Top ' + topPercent + '%';
         }
 
         if (topEl) {
@@ -4293,7 +4293,7 @@ description: |            # 描述：什么时候该用这个Skill<br>
         const timeEl = document.getElementById('complete-time');
         if (timeEl) {
           const avgMinutes = Math.round((3 + Math.random() * 5) * 10) / 10;
-          timeEl.textContent = '约' + avgMinutes + '分钟';
+          timeEl.textContent = avgMinutes + ' min';
         }
       });
     }
